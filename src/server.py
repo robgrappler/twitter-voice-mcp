@@ -11,6 +11,7 @@ load_dotenv()
 from ai_handler import AIHandler
 from twitter_handler import TwitterHandler
 from data_handler import DataManager
+from scheduler import TweetScheduler
 
 mcp = FastMCP("twitter-voice-mcp")
 
@@ -18,6 +19,7 @@ mcp = FastMCP("twitter-voice-mcp")
 ai_handler = AIHandler()
 twitter = TwitterHandler()
 data_manager = DataManager()
+scheduler = TweetScheduler()
 
 @mcp.tool()
 def configure_ai_model(provider: str, model: str = None) -> str:
@@ -294,6 +296,42 @@ def scan_and_draft_tweets_from_images(folder_path: str) -> str:
             results.append(f"Failed to generate for {img_file}: {generated_tweets[0] if generated_tweets else 'Unknown error'}")
             
     return "\n".join(results)
+
+@mcp.tool()
+def schedule_draft(draft_id: str, scheduled_time: str) -> str:
+    """
+    Schedule a draft for posting at a specific time.
+    Format: ISO 8601 (YYYY-MM-DDTHH:MM:SS)
+    Example: schedule_draft("abc123", "2025-01-27T14:30:00")
+    """
+    if scheduler.schedule_draft(draft_id, scheduled_time):
+        return f"Draft {draft_id} scheduled for {scheduled_time}. Will be posted via GitHub Actions."
+    else:
+        return f"Error scheduling draft {draft_id}. Draft not found or invalid time format."
+
+@mcp.tool()
+def list_scheduled_drafts() -> str:
+    """
+    List all scheduled posts waiting to be posted.
+    """
+    scheduled = scheduler.list_scheduled()
+    if not scheduled:
+        return "No scheduled posts."
+    
+    output = "Scheduled Posts:\n"
+    for s in scheduled:
+        output += f"[{s['id']}] {s['text'][:50]}... (Scheduled: {s['scheduled_time']})\n"
+    return output
+
+@mcp.tool()
+def unschedule_draft(draft_id: str) -> str:
+    """
+    Unschedule a draft, returning it to pending status.
+    """
+    if scheduler.unschedule_draft(draft_id):
+        return f"Draft {draft_id} unscheduled and returned to pending."
+    else:
+        return f"Error unscheduling draft {draft_id}."
 
 if __name__ == "__main__":
     mcp.run()
