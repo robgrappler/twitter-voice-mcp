@@ -1,0 +1,10 @@
+mcp[cli]
+google-generativeai
+openai
+anthropic
+requests
+requests-oauthlib
+pandas
+python-dotenv
+pydantic
+pillow
