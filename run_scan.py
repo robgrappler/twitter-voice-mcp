@@ -13,7 +13,7 @@ def scan_and_draft(folder_path):
     
     ai_handler = AIHandler()
     # Force the model to be sure
-    ai_handler.model = "gemini-2.5-flash" 
+    ai_handler.model = "gemini-1.5-flash" 
     data_manager = DataManager()
     
     print(f"Scanning {folder_path}...")

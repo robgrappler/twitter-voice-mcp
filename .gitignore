@@ -41,7 +41,8 @@ Thumbs.db
 *.aac
 
 # Data and logs
-data/
+data/*
+!data/*.csv
 logs/
 *.log
 *.db

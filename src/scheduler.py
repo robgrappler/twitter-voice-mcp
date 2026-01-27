@@ -24,7 +24,7 @@ class TweetScheduler:
             # Validate ISO format
             datetime.fromisoformat(scheduled_time)
             
-            df = pd.read_csv(self.data_manager.get_path_to_drafts_file())
+            df = pd.read_csv(self.data_manager.get_path_to_drafts_file(), keep_default_na=False)
             if draft_id not in df["id"].values:
                 return False
             
@@ -43,7 +43,7 @@ class TweetScheduler:
         Used by GitHub Actions or cron job.
         """
         try:
-            df = pd.read_csv(self.data_manager.get_path_to_drafts_file())
+            df = pd.read_csv(self.data_manager.get_path_to_drafts_file(), keep_default_na=False)
             scheduled = df[df["status"] == "scheduled"]
             
             if scheduled.empty:
@@ -60,7 +60,7 @@ class TweetScheduler:
     def list_scheduled(self) -> List[dict]:
         """List all scheduled posts."""
         try:
-            df = pd.read_csv(self.data_manager.get_path_to_drafts_file())
+            df = pd.read_csv(self.data_manager.get_path_to_drafts_file(), keep_default_na=False)
             scheduled = df[df["status"] == "scheduled"]
             return scheduled.to_dict("records")
         except Exception as e:
@@ -70,7 +70,7 @@ class TweetScheduler:
     def unschedule_draft(self, draft_id: str) -> bool:
         """Unschedule a draft, returning it to pending status."""
         try:
-            df = pd.read_csv(self.data_manager.get_path_to_drafts_file())
+            df = pd.read_csv(self.data_manager.get_path_to_drafts_file(), keep_default_na=False)
             if draft_id not in df["id"].values:
                 return False
             

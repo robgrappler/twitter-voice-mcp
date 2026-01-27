@@ -31,7 +31,7 @@ class DataManager:
 
     def add_draft(self, text: str, media_path: str = None, model: str = "manual", 
                  notes: str = "", is_retweet: bool = False, original_tweet_id: str = None) -> str:
-        df = pd.read_csv(DRAFTS_FILE)
+        df = pd.read_csv(DRAFTS_FILE, keep_default_na=False)
         draft_id = str(uuid.uuid4())[:8]
         new_row = {
             "id": draft_id,
@@ -50,19 +50,19 @@ class DataManager:
         return draft_id
 
     def list_pending_drafts(self) -> List[Dict]:
-        df = pd.read_csv(DRAFTS_FILE)
+        df = pd.read_csv(DRAFTS_FILE, keep_default_na=False)
         pending = df[df["status"] == "pending"]
         return pending.to_dict("records")
 
     def get_draft(self, draft_id: str) -> Optional[Dict]:
-        df = pd.read_csv(DRAFTS_FILE)
+        df = pd.read_csv(DRAFTS_FILE, keep_default_na=False)
         row = df[df["id"] == draft_id]
         if row.empty:
             return None
         return row.iloc[0].to_dict()
 
     def update_draft_status(self, draft_id: str, status: str):
-        df = pd.read_csv(DRAFTS_FILE)
+        df = pd.read_csv(DRAFTS_FILE, keep_default_na=False)
         if draft_id in df["id"].values:
             df.loc[df["id"] == draft_id, "status"] = status
             df.to_csv(DRAFTS_FILE, index=False)
@@ -71,7 +71,7 @@ class DataManager:
         self.update_draft_status(draft_id, "posted")
         draft = self.get_draft(draft_id)
         
-        log_df = pd.read_csv(POSTED_LOG)
+        log_df = pd.read_csv(POSTED_LOG, keep_default_na=False)
         new_log = {
             "id": draft_id,
             "text": draft["text"],

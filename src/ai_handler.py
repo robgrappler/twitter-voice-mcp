@@ -12,13 +12,13 @@ except ImportError:
 class AIHandler:
     def __init__(self):
         self.provider = "gemini" # Default
-        self.model = "gemini-2.5-flash"
+        self.model = "gemini-1.5-flash"
         self.api_key = os.getenv("GEMINI_API_KEY")
         self.voice_profile_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "voice_profile.txt")
         
         # Initialize default from env if available
         if os.getenv("GEMINI_API_KEY"):
-            self.configure("gemini", os.getenv("GEMINI_API_KEY"), "gemini-2.5-flash")
+            self.configure("gemini", os.getenv("GEMINI_API_KEY"), "gemini-1.5-flash")
         elif os.getenv("OPENAI_API_KEY"):
             self.configure("openai", os.getenv("OPENAI_API_KEY"), "gpt-4o-mini")
         elif os.getenv("ANTHROPIC_API_KEY"):
