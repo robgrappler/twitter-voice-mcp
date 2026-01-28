@@ -21,6 +21,26 @@ twitter = TwitterHandler()
 data_manager = DataManager()
 scheduler = TweetScheduler()
 
+# Define safe directory for file operations
+SAFE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data"))
+
+def validate_path(path: str) -> str:
+    """
+    Validates that the path is within the SAFE_DIR.
+    Returns the absolute path if valid, raises ValueError otherwise.
+    """
+    abs_path = os.path.abspath(path)
+
+    try:
+        # Check if abs_path is inside SAFE_DIR using commonpath (handles component boundaries)
+        if os.path.commonpath([abs_path, SAFE_DIR]) == SAFE_DIR:
+            return abs_path
+    except ValueError:
+        # Can happen on Windows if paths are on different drives
+        pass
+
+    raise ValueError(f"Access denied: Path must be within {SAFE_DIR}")
+
 @mcp.tool()
 def configure_ai_model(provider: str, model: str = None) -> str:
     """
@@ -77,6 +97,11 @@ def analyze_from_file(file_path: str) -> str:
     """
     Analyze voice from a text file containing tweets (one per line) or raw text.
     """
+    try:
+        file_path = validate_path(file_path)
+    except ValueError as e:
+        return str(e)
+
     if not os.path.exists(file_path):
         return f"File not found: {file_path}"
     
@@ -265,6 +290,11 @@ def scan_and_draft_tweets_from_images(folder_path: str) -> str:
     Scan a folder for images, generate tweets for them using the voice profile, and save as drafts.
     Supported extensions: .jpg, .jpeg, .png, .webp, .heic
     """
+    try:
+        folder_path = validate_path(folder_path)
+    except ValueError as e:
+        return str(e)
+
     if not os.path.exists(folder_path):
         return f"Folder not found: {folder_path}"
         
