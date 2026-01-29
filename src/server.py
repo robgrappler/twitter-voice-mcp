@@ -126,6 +126,12 @@ def generate_draft_tweets(topic: str, count: int = 3, media_path: str = None) ->
     Generate new tweets in your voice about a topic and save them as drafts.
     """
     try:
+        if media_path:
+            try:
+                media_path = validate_path(media_path)
+            except ValueError as e:
+                return f"Error: {str(e)}"
+
         tweets = ai_handler.generate_tweet(topic, count)
         draft_ids = []
         for text in tweets:
@@ -203,6 +209,12 @@ def approve_and_post_draft(draft_id: str) -> str:
         return "Draft already posted."
         
     try:
+        if draft.get("media_path"):
+            try:
+                draft["media_path"] = validate_path(draft["media_path"])
+            except ValueError as e:
+                return f"Security Error: Invalid media path in draft: {str(e)}"
+
         # Post to Twitter
         if draft.get("is_retweet"):
             # This is a Quote Tweet essentially (comment + link) or just text if API supports it
