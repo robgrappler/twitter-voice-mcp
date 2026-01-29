@@ -1,4 +1,5 @@
 import pandas as pd
+import csv
 import sqlite3
 import os
 from datetime import datetime
@@ -31,22 +32,27 @@ class DataManager:
 
     def add_draft(self, text: str, media_path: str = None, model: str = "manual", 
                  notes: str = "", is_retweet: bool = False, original_tweet_id: str = None) -> str:
-        df = pd.read_csv(DRAFTS_FILE, keep_default_na=False)
         draft_id = str(uuid.uuid4())[:8]
-        new_row = {
-            "id": draft_id,
-            "text": text,
-            "media_path": media_path if media_path else "",
-            "model_used": model,
-            "status": "pending",
-            "created_at": datetime.now().isoformat(),
-            "scheduled_time": "",
-            "notes": notes,
-            "is_retweet": is_retweet,
-            "original_tweet_id": original_tweet_id if original_tweet_id else ""
-        }
-        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-        df.to_csv(DRAFTS_FILE, index=False)
+
+        # Prepare the row data preserving the column order defined in _init_csvs
+        # ["id", "text", "media_path", "model_used", "status", "created_at", "scheduled_time", "notes", "is_retweet", "original_tweet_id"]
+        row = [
+            draft_id,
+            text,
+            media_path if media_path else "",
+            model,
+            "pending",
+            datetime.now().isoformat(),
+            "",  # scheduled_time
+            notes,
+            is_retweet,
+            original_tweet_id if original_tweet_id else ""
+        ]
+
+        with open(DRAFTS_FILE, 'a', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(row)
+
         return draft_id
 
     def list_pending_drafts(self) -> List[Dict]:
