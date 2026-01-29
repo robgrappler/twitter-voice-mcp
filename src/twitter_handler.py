@@ -15,6 +15,7 @@ class TwitterHandler:
         self.access_token_secret = os.getenv("TWITTER_ACCESS_TOKEN_SECRET")
         
         self.session = None
+        self.user_id = None
         if self.consumer_key and self.access_token:
             self.session = OAuth1Session(
                 self.consumer_key,
@@ -143,13 +144,13 @@ class TwitterHandler:
         Retweet a tweet.
         """
         # Need my user ID first
-        me_resp = self.session.get("https://api.twitter.com/2/users/me")
-        if me_resp.status_code != 200:
-            return {"error": "Failed to get my user ID"}
-            
-        my_id = me_resp.json()["data"]["id"]
+        if not self.user_id:
+            me_resp = self.session.get("https://api.twitter.com/2/users/me")
+            if me_resp.status_code != 200:
+                return {"error": "Failed to get my user ID"}
+            self.user_id = me_resp.json()["data"]["id"]
         
-        url = f"https://api.twitter.com/2/users/{my_id}/retweets"
+        url = f"https://api.twitter.com/2/users/{self.user_id}/retweets"
         payload = {"tweet_id": tweet_id}
         
         resp = self.session.post(url, json=payload, headers={"Content-Type": "application/json"})
