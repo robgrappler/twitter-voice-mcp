@@ -77,16 +77,18 @@ class DataManager:
         self.update_draft_status(draft_id, "posted")
         draft = self.get_draft(draft_id)
         
-        log_df = pd.read_csv(POSTED_LOG, keep_default_na=False)
-        new_log = {
-            "id": draft_id,
-            "text": draft["text"],
-            "media_path": draft["media_path"],
-            "posted_at": datetime.now().isoformat(),
-            "tweet_id": tweet_id
-        }
-        log_df = pd.concat([log_df, pd.DataFrame([new_log])], ignore_index=True)
-        log_df.to_csv(POSTED_LOG, index=False)
+        # Optimize: Append directly to CSV instead of reading the whole file
+        row = [
+            draft_id,
+            draft["text"],
+            draft["media_path"],
+            datetime.now().isoformat(),
+            tweet_id
+        ]
+
+        with open(POSTED_LOG, 'a', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(row)
 
     def get_path_to_drafts_file(self) -> str:
         return DRAFTS_FILE
