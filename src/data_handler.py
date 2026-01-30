@@ -88,5 +88,25 @@ class DataManager:
         log_df = pd.concat([log_df, pd.DataFrame([new_log])], ignore_index=True)
         log_df.to_csv(POSTED_LOG, index=False)
 
+    def _sanitize_csv_field(self, field: any) -> any:
+        """
+        Sanitize a field for CSV injection (Excel formula injection).
+        If a field is a string and starts with =, +, -, or @, prepend a single quote.
+        """
+        if isinstance(field, str) and field and field[0] in ('=', '+', '-', '@'):
+            return f"'{field}"
+        return field
+
+    def export_safe_drafts(self) -> str:
+        """
+        Creates a sanitized copy of the drafts CSV for manual review.
+        Prevents CSV formula injection.
+        """
+        safe_file = os.path.join(DATA_DIR, "drafts_safe.csv")
+        df = pd.read_csv(DRAFTS_FILE, keep_default_na=False)
+        safe_df = df.map(self._sanitize_csv_field)
+        safe_df.to_csv(safe_file, index=False)
+        return safe_file
+
     def get_path_to_drafts_file(self) -> str:
         return DRAFTS_FILE

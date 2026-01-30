@@ -294,7 +294,7 @@ def export_drafts_csv() -> str:
     """
     Get the path to the drafts CSV file for manual review.
     """
-    return data_manager.get_path_to_drafts_file()
+    return data_manager.export_safe_drafts()
 
 @mcp.tool()
 def scan_and_draft_tweets_from_images(folder_path: str) -> str:
