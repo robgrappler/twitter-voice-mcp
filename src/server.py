@@ -292,9 +292,10 @@ def approve_and_post_draft(draft_id: str) -> str:
 @mcp.tool()
 def export_drafts_csv() -> str:
     """
-    Get the path to the drafts CSV file for manual review.
+    Get the path to a sanitized drafts CSV file for manual review.
+    Safely escapes formulas to prevent CSV injection.
     """
-    return data_manager.get_path_to_drafts_file()
+    return data_manager.export_safe_drafts()
 
 @mcp.tool()
 def scan_and_draft_tweets_from_images(folder_path: str) -> str:
