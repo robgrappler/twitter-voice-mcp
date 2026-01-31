@@ -260,7 +260,7 @@ def approve_and_post_draft(draft_id: str) -> str:
             return f"Failed to post: {result['error']}"
             
         tweet_id = result.get("data", {}).get("id")
-        data_manager.mark_as_posted(draft_id, tweet_id)
+        data_manager.mark_as_posted(draft_id, tweet_id, draft["text"], draft.get("media_path"))
         
         # Move image to 'posted' subfolder if it exists
         msg_suffix = ""

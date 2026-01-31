@@ -46,7 +46,7 @@ def main():
                     continue
                 
                 tweet_id = result.get("data", {}).get("id")
-                data_manager.mark_as_posted(draft_id, tweet_id)
+                data_manager.mark_as_posted(draft_id, tweet_id, text, media_path)
                 print(f"    SUCCESS: Posted as tweet {tweet_id}")
                 posted_count += 1
                 

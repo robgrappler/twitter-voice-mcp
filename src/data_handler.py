@@ -73,20 +73,37 @@ class DataManager:
             df.loc[df["id"] == draft_id, "status"] = status
             df.to_csv(DRAFTS_FILE, index=False)
 
-    def mark_as_posted(self, draft_id: str, tweet_id: str):
+    def mark_as_posted(self, draft_id: str, tweet_id: str, text: str = None, media_path: str = None):
+        """
+        Marks a draft as posted and logs it to history.
+        Optimized to use O(1) append for logging instead of O(N) DataFrame rewrite.
+        """
         self.update_draft_status(draft_id, "posted")
-        draft = self.get_draft(draft_id)
         
-        log_df = pd.read_csv(POSTED_LOG, keep_default_na=False)
-        new_log = {
-            "id": draft_id,
-            "text": draft["text"],
-            "media_path": draft["media_path"],
-            "posted_at": datetime.now().isoformat(),
-            "tweet_id": tweet_id
-        }
-        log_df = pd.concat([log_df, pd.DataFrame([new_log])], ignore_index=True)
-        log_df.to_csv(POSTED_LOG, index=False)
+        # Use provided text/media_path if available to avoid reading file
+        if text is None or media_path is None:
+            draft = self.get_draft(draft_id)
+            if draft:
+                text = draft["text"]
+                media_path = draft["media_path"]
+            else:
+                text = ""
+                media_path = ""
+
+        # Append to CSV directly (O(1)) instead of reading/writing with Pandas (O(N))
+        # We assume the column order matches _init_csvs:
+        # ["id", "text", "media_path", "posted_at", "tweet_id"]
+        row = [
+            draft_id,
+            text,
+            media_path,
+            datetime.now().isoformat(),
+            tweet_id
+        ]
+
+        with open(POSTED_LOG, 'a', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(row)
 
     def get_path_to_drafts_file(self) -> str:
         return DRAFTS_FILE
