@@ -127,3 +127,23 @@ class DataManager:
 
     def get_path_to_drafts_file(self) -> str:
         return DRAFTS_FILE
+
+    def export_safe_drafts(self) -> str:
+        """
+        Export drafts to a new CSV file with sanitized fields to prevent CSV injection.
+        """
+        safe_file = os.path.join(DATA_DIR, "drafts_safe_export.csv")
+        df = pd.read_csv(DRAFTS_FILE, keep_default_na=False)
+
+        def sanitize(val):
+            if isinstance(val, str) and val.startswith(('=', '+', '-', '@')):
+                return "'" + val
+            return val
+
+        # Sanitize string columns that might contain user input
+        for col in ["text", "notes", "media_path", "model_used"]:
+             if col in df.columns:
+                 df[col] = df[col].apply(sanitize)
+
+        df.to_csv(safe_file, index=False)
+        return safe_file
