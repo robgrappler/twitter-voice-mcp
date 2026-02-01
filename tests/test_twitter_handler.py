@@ -79,5 +79,55 @@ class TestTwitterHandler(unittest.TestCase):
         self.handler.retweet("tweet2")
         self.assertEqual(self.handler.user_id, "67890")
 
+    def test_get_user_tweets_caches_id(self):
+        # Mock responses
+        mock_user_id_response = MagicMock()
+        mock_user_id_response.status_code = 200
+        mock_user_id_response.json.return_value = {"data": {"id": "999"}}
+
+        mock_tweets_response = MagicMock()
+        mock_tweets_response.status_code = 200
+        mock_tweets_response.json.return_value = {"data": [{"text": "tweet1"}]}
+
+        def get_side_effect(url, **kwargs):
+            if "users/by/username/testuser" in url:
+                return mock_user_id_response
+            if "users/999/tweets" in url:
+                return mock_tweets_response
+            return MagicMock(status_code=404)
+
+        self.handler.session.get.side_effect = get_side_effect
+
+        # First call
+        tweets1 = self.handler.get_user_tweets("testuser")
+        self.assertEqual(len(tweets1), 1)
+        self.assertEqual(self.handler.user_cache["testuser"], "999")
+
+        # Second call
+        tweets2 = self.handler.get_user_tweets("testuser")
+        self.assertEqual(len(tweets2), 1)
+
+        # Verify get was called only once for user ID
+        # Count calls that contain 'users/by/username/testuser'
+        id_calls = [
+            call for call in self.handler.session.get.call_args_list
+            if call[0] and "users/by/username/testuser" in call[0][0]
+        ]
+        self.assertEqual(len(id_calls), 1)
+
+    def test_verify_credentials_sets_user_id(self):
+        # Mock response
+        mock_me_response = MagicMock()
+        mock_me_response.status_code = 200
+        mock_me_response.json.return_value = {"data": {"id": "my_id_123"}}
+
+        self.handler.session.get.return_value = mock_me_response
+
+        # Call verify_credentials
+        result = self.handler.verify_credentials()
+
+        self.assertTrue(result)
+        self.assertEqual(self.handler.user_id, "my_id_123")
+
 if __name__ == "__main__":
     unittest.main()
