@@ -70,13 +70,12 @@ class AIHandler:
 
     def generate_tweet(self, topic: str, count: int = 1) -> List[str]:
         voice_profile = self.get_voice_profile()
-        prompt = f"""
+
+        system_instruction = f"""
         You are a ghostwriter for a specific persona. Here is their voice profile:
         <voice_profile>
         {voice_profile}
         </voice_profile>
-        
-        Task: Write {count} distinct tweets about: "{topic}".
         
         Constraints:
         - Strictly follow the voice profile (tone, emojis, formatting).
@@ -86,7 +85,9 @@ class AIHandler:
         - Do not number them.
         """
         
-        response = self._call_model(prompt)
+        user_prompt = f"""Task: Write {count} distinct tweets about: "{topic}"."""
+
+        response = self._call_model(user_prompt, system_instruction=system_instruction)
         tweets = [t.strip() for t in response.split('\n') if t.strip() and not t.strip().startswith('---')]
         # Simple cleanup if the model creates numbered lists
         clean_tweets = []
@@ -99,14 +100,12 @@ class AIHandler:
 
     def generate_retweet_comment(self, original_tweet_text: str) -> str:
         voice_profile = self.get_voice_profile()
-        prompt = f"""
+
+        system_instruction = f"""
         You are a ghostwriter for a specific persona. Here is their voice profile:
         <voice_profile>
         {voice_profile}
         </voice_profile>
-        
-        Task: Write a Quote Tweet comment for the following tweet:
-        "{original_tweet_text}"
         
         Constraints:
         - Strictly follow the voice profile.
@@ -115,20 +114,21 @@ class AIHandler:
         - Output ONLY the comment text.
         """
         
-        return self._call_model(prompt).strip()
+        user_prompt = f"""Task: Write a Quote Tweet comment for the following tweet:\n"{original_tweet_text}" """
+
+        return self._call_model(user_prompt, system_instruction=system_instruction).strip()
 
     def generate_tweet_from_image(self, image_path: str, count: int = 1) -> List[str]:
         if not Image:
              return ["Error: Pillow library not installed. Please install it to use image features."]
              
         voice_profile = self.get_voice_profile()
-        prompt = f"""
+
+        system_instruction = f"""
         You are a ghostwriter for a specific persona. Here is their voice profile:
         <voice_profile>
         {voice_profile}
         </voice_profile>
-        
-        Task: Analyze the provided image and write {count} distinct tweets based on it.
         
         Constraints:
         - Strictly follow the voice profile (tone, emojis, formatting).
@@ -137,9 +137,11 @@ class AIHandler:
         - Output ONLY the tweets, one per line.
         """
         
+        user_prompt = f"Task: Analyze the provided image and write {count} distinct tweets based on it."
+
         try:
             img = Image.open(image_path)
-            response = self._call_model(prompt, images=[img])
+            response = self._call_model(user_prompt, system_instruction=system_instruction, images=[img])
             
             tweets = [t.strip() for t in response.split('\n') if t.strip() and not t.strip().startswith('---')]
             clean_tweets = []
@@ -152,10 +154,15 @@ class AIHandler:
         except Exception as e:
             return [f"Error analyzing image: {str(e)}"]
 
-    def _call_model(self, prompt: str, images: list = None) -> str:
+    def _call_model(self, prompt: str, system_instruction: str = None, images: list = None) -> str:
         try:
             if self.provider == "gemini":
-                model = genai.GenerativeModel(self.model)
+                # Pass system_instruction to GenerativeModel constructor
+                if system_instruction:
+                    model = genai.GenerativeModel(self.model, system_instruction=system_instruction)
+                else:
+                    model = genai.GenerativeModel(self.model)
+
                 if images:
                     response = model.generate_content([prompt, *images])
                 else:
@@ -166,9 +173,15 @@ class AIHandler:
                 if images:
                     # TODO: Implement OpenAI Vision support if needed
                     return "Error: Image support only implemented for Gemini currently."
+
+                messages = []
+                if system_instruction:
+                    messages.append({"role": "system", "content": system_instruction})
+                messages.append({"role": "user", "content": prompt})
+
                 response = self.client.chat.completions.create(
                     model=self.model,
-                    messages=[{"role": "user", "content": prompt}]
+                    messages=messages
                 )
                 return response.choices[0].message.content
                 
@@ -176,11 +189,17 @@ class AIHandler:
                 if images:
                      # TODO: Implement Claude Vision support if needed
                     return "Error: Image support only implemented for Gemini currently."
-                response = self.client.messages.create(
-                    model=self.model,
-                    max_tokens=1000,
-                    messages=[{"role": "user", "content": prompt}]
-                )
+
+                kwargs = {
+                    "model": self.model,
+                    "max_tokens": 1000,
+                    "messages": [{"role": "user", "content": prompt}]
+                }
+
+                if system_instruction:
+                    kwargs["system"] = system_instruction
+
+                response = self.client.messages.create(**kwargs)
                 return response.content[0].text
                 
         except Exception as e:
