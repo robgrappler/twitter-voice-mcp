@@ -16,6 +16,7 @@ class TwitterHandler:
         
         self.session = None
         self.user_id = None
+        self.user_cache = {}  # Cache username -> user_id
         if self.consumer_key and self.access_token:
             self.session = OAuth1Session(
                 self.consumer_key,
@@ -30,7 +31,10 @@ class TwitterHandler:
         # v2 'me' endpoint
         url = "https://api.twitter.com/2/users/me"
         response = self.session.get(url)
-        return response.status_code == 200
+        if response.status_code == 200:
+            self.user_id = response.json()["data"]["id"]
+            return True
+        return False
 
     def upload_media(self, file_path: str) -> Optional[str]:
         """
@@ -97,15 +101,20 @@ class TwitterHandler:
         Note: Requires Basic Tier or higher for v2 user timeline.
         If Free Tier, this might fail.
         """
-        # First get user ID
-        user_url = f"https://api.twitter.com/2/users/by/username/{username}"
-        user_resp = self.session.get(user_url)
-        
-        if user_resp.status_code != 200:
-            logger.error(f"Failed to get user ID: {user_resp.text}")
-            return []
+        # Check cache first
+        if username in self.user_cache:
+            user_id = self.user_cache[username]
+        else:
+            # First get user ID
+            user_url = f"https://api.twitter.com/2/users/by/username/{username}"
+            user_resp = self.session.get(user_url)
             
-        user_id = user_resp.json()["data"]["id"]
+            if user_resp.status_code != 200:
+                logger.error(f"Failed to get user ID: {user_resp.text}")
+                return []
+
+            user_id = user_resp.json()["data"]["id"]
+            self.user_cache[username] = user_id
         
         # Get tweets
         tweets_url = f"https://api.twitter.com/2/users/{user_id}/tweets"
