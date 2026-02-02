@@ -79,5 +79,48 @@ class TestTwitterHandler(unittest.TestCase):
         self.handler.retweet("tweet2")
         self.assertEqual(self.handler.user_id, "67890")
 
+    def test_verify_credentials_caches_user_id(self):
+        # Mock response
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"data": {"id": "111222"}}
+        self.handler.session.get.return_value = mock_response
+
+        result = self.handler.verify_credentials()
+        self.assertTrue(result)
+        self.assertEqual(self.handler.user_id, "111222")
+
+    def test_get_user_tweets_caches_username(self):
+        # Mock responses
+        mock_user_response = MagicMock()
+        mock_user_response.status_code = 200
+        mock_user_response.json.return_value = {"data": {"id": "333444"}}
+
+        mock_tweets_response = MagicMock()
+        mock_tweets_response.status_code = 200
+        mock_tweets_response.json.return_value = {"data": [{"text": "Hello"}]}
+
+        def get_side_effect(url, **kwargs):
+            if "users/by/username" in url:
+                return mock_user_response
+            if "tweets" in url:
+                return mock_tweets_response
+            return MagicMock(status_code=404)
+
+        self.handler.session.get.side_effect = get_side_effect
+
+        # First call
+        tweets1 = self.handler.get_user_tweets("testuser")
+        self.assertEqual(tweets1, ["Hello"])
+        self.assertEqual(self.handler.user_cache.get("testuser"), "333444")
+
+        # Second call
+        tweets2 = self.handler.get_user_tweets("testuser")
+        self.assertEqual(tweets2, ["Hello"])
+
+        # Verify get was called only once for username lookup
+        user_lookup_calls = [call for call in self.handler.session.get.call_args_list if "users/by/username" in call[0][0]]
+        self.assertEqual(len(user_lookup_calls), 1)
+
 if __name__ == "__main__":
     unittest.main()
