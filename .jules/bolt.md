@@ -5,3 +5,7 @@
 ## 2025-01-27 - [Twitter API Caching]
 **Learning:** Repeated lookups of the same username via Twitter API (e.g., during voice analysis) are redundant and slow.
 **Action:** Implement a simple in-memory cache (dict) for username->ID lookups and cache the authenticated user's ID to reduce API latency and cost.
+
+## 2025-01-27 - [Lazy Loading AI Libraries]
+**Learning:** Top-level imports of heavy AI client libraries (google.generativeai, openai, anthropic) caused a ~2.7s startup delay.
+**Action:** Implemented lazy loading by moving imports inside `configure` and `_call_model` methods, reducing import time to ~0.1s and only loading what is needed.
