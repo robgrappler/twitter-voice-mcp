@@ -15,8 +15,6 @@ class TwitterHandler:
         self.access_token_secret = os.getenv("TWITTER_ACCESS_TOKEN_SECRET")
         
         self.session = None
-        self.user_id = None
-        self.user_cache = {}
         if self.consumer_key and self.access_token:
             self.session = OAuth1Session(
                 self.consumer_key,
@@ -31,14 +29,7 @@ class TwitterHandler:
         # v2 'me' endpoint
         url = "https://api.twitter.com/2/users/me"
         response = self.session.get(url)
-        if response.status_code == 200:
-            try:
-                data = response.json().get("data", {})
-                self.user_id = data.get("id")
-            except Exception as e:
-                logger.error(f"Error parsing user ID: {e}")
-            return True
-        return False
+        return response.status_code == 200
 
     def upload_media(self, file_path: str) -> Optional[str]:
         """
@@ -106,18 +97,22 @@ class TwitterHandler:
         If Free Tier, this might fail.
         """
         # First get user ID
-        if username in self.user_cache:
-            user_id = self.user_cache[username]
-        else:
-            user_url = f"https://api.twitter.com/2/users/by/username/{username}"
-            user_resp = self.session.get(user_url)
+        user_url = f"https://api.twitter.com/2/users/by/username/{username}"
+        user_resp = self.session.get(user_url)
+        
+        if user_resp.status_code != 200:
+            logger.error(f"Failed to get user ID: {user_resp.text}")
+            return []
             
-            if user_resp.status_code != 200:
-                logger.error(f"Failed to get user ID: {user_resp.text}")
-                return []
-
-            user_id = user_resp.json()["data"]["id"]
-            self.user_cache[username] = user_id
+        data = user_resp.json().get("data")
+        if not data:
+            logger.error(f"No user data in response: {user_resp.text}")
+            return []
+        
+        user_id = data.get("id")
+        if not user_id:
+            logger.error(f"No user ID in data: {data}")
+            return []
         
         # Get tweets
         tweets_url = f"https://api.twitter.com/2/users/{user_id}/tweets"
@@ -156,13 +151,13 @@ class TwitterHandler:
         Retweet a tweet.
         """
         # Need my user ID first
-        if not self.user_id:
-            me_resp = self.session.get("https://api.twitter.com/2/users/me")
-            if me_resp.status_code != 200:
-                return {"error": "Failed to get my user ID"}
-            self.user_id = me_resp.json()["data"]["id"]
+        me_resp = self.session.get("https://api.twitter.com/2/users/me")
+        if me_resp.status_code != 200:
+            return {"error": "Failed to get my user ID"}
+            
+        my_id = me_resp.json()["data"]["id"]
         
-        url = f"https://api.twitter.com/2/users/{self.user_id}/retweets"
+        url = f"https://api.twitter.com/2/users/{my_id}/retweets"
         payload = {"tweet_id": tweet_id}
         
         resp = self.session.post(url, json=payload, headers={"Content-Type": "application/json"})

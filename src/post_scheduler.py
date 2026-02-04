@@ -6,12 +6,14 @@ Fetches all due scheduled tweets and posts them to Twitter.
 
 import sys
 import os
+from dotenv import load_dotenv
 from datetime import datetime
 from scheduler import TweetScheduler
 from twitter_handler import TwitterHandler
 from data_handler import DataManager
 
 def main():
+    load_dotenv()
     try:
         scheduler = TweetScheduler()
         twitter = TwitterHandler()
