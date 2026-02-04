@@ -1,7 +1,4 @@
 import os
-import google.generativeai as genai
-from openai import OpenAI
-from anthropic import Anthropic
 from typing import List, Optional, Union
 import json
 try:
@@ -15,7 +12,8 @@ class AIHandler:
         self.model = "gemini-1.5-flash"
         self.api_key = os.getenv("GEMINI_API_KEY")
         self.voice_profile_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "voice_profile.txt")
-        
+        self.client = None
+
         # Initialize default from env if available
         if os.getenv("GEMINI_API_KEY"):
             self.configure("gemini", os.getenv("GEMINI_API_KEY"), "gemini-1.5-flash")
@@ -29,12 +27,15 @@ class AIHandler:
         self.api_key = api_key
         
         if self.provider == "gemini":
+            import google.generativeai as genai
             self.model = model or "gemini-1.5-flash-001" # Try specific version
             genai.configure(api_key=self.api_key)
         elif self.provider == "openai":
+            from openai import OpenAI
             self.model = model or "gpt-4o-mini"
             self.client = OpenAI(api_key=self.api_key)
         elif self.provider == "anthropic":
+            from anthropic import Anthropic
             self.model = model or "claude-3-haiku-20240307"
             self.client = Anthropic(api_key=self.api_key)
             
@@ -155,6 +156,7 @@ class AIHandler:
     def _call_model(self, prompt: str, images: list = None) -> str:
         try:
             if self.provider == "gemini":
+                import google.generativeai as genai
                 model = genai.GenerativeModel(self.model)
                 if images:
                     response = model.generate_content([prompt, *images])
