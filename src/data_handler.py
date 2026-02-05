@@ -104,26 +104,25 @@ class DataManager:
         with open(POSTED_LOG, 'a', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow(row)
-
-    def get_path_to_drafts_file(self) -> str:
-        return DRAFTS_FILE
+    def _sanitize_csv_field(self, field: any) -> any:
+        """
+        Sanitize a field for CSV injection (Excel formula injection).
+        If a field is a string and starts with =, +, -, or @, prepend a single quote.
+        """
+        if isinstance(field, str) and field and field[0] in ('=', '+', '-', '@'):
+            return f"'{field}"
+        return field
 
     def export_safe_drafts(self) -> str:
         """
-        Export drafts to a new CSV file with sanitized fields to prevent CSV injection.
+        Creates a sanitized copy of the drafts CSV for manual review.
+        Prevents CSV formula injection.
         """
         safe_file = os.path.join(DATA_DIR, "drafts_safe_export.csv")
         df = pd.read_csv(DRAFTS_FILE, keep_default_na=False)
-
-        def sanitize(val):
-            if isinstance(val, str) and val.startswith(('=', '+', '-', '@')):
-                return "'" + val
-            return val
-
-        # Sanitize string columns that might contain user input
-        for col in ["text", "notes", "media_path", "model_used"]:
-             if col in df.columns:
-                 df[col] = df[col].apply(sanitize)
-
-        df.to_csv(safe_file, index=False)
+        safe_df = df.map(self._sanitize_csv_field)
+        safe_df.to_csv(safe_file, index=False)
         return safe_file
+
+    def get_path_to_drafts_file(self) -> str:
+        return DRAFTS_FILE
