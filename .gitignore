@@ -51,3 +51,7 @@ logs/
 
 # Byterover
 .brv/
+
+# Temporary and Output files
+data/drafts_safe_export.csv
+output/
