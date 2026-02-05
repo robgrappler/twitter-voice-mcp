@@ -49,7 +49,9 @@ class AIHandler:
         4. Themes (e.g., wrestling, fitness, coding)
         
         Tweets:
+        <tweets>
         {json.dumps(tweets, indent=2)}
+        </tweets>
         
         Output a concise "Voice Profile" description that can be used to instruct an AI to generate new tweets in this exact style.
         """
@@ -77,7 +79,9 @@ class AIHandler:
         {voice_profile}
         </voice_profile>
         
-        Task: Write {count} distinct tweets about: "{topic}".
+        Task: Write {count} distinct tweets about the topic provided in the <topic> tags.
+
+        <topic>{topic}</topic>
         
         Constraints:
         - Strictly follow the voice profile (tone, emojis, formatting).
@@ -106,8 +110,8 @@ class AIHandler:
         {voice_profile}
         </voice_profile>
         
-        Task: Write a Quote Tweet comment for the following tweet:
-        "{original_tweet_text}"
+        Task: Write a Quote Tweet comment for the following tweet provided in the <original_tweet> tags:
+        <original_tweet>{original_tweet_text}</original_tweet>
         
         Constraints:
         - Strictly follow the voice profile.
