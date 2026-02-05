@@ -7,3 +7,8 @@
 **Vulnerability:** User-generated content (tweets) starting with =, +, -, @ could execute formulas when exported to CSV and opened in Excel.
 **Learning:** Raw data used by the application should be kept separate from user-facing exports. Sanitizing at storage level corrupts application data; sanitizing at export level is safer.
 **Prevention:** Implement specific "Safe Export" functions that escape dangerous characters (prepends single quote) only for files intended for human consumption.
+
+## 2025-05-20 - Prompt Injection in AI Handler
+**Vulnerability:** User inputs (topics, original tweets) were interpolated directly into LLM prompts without delimiters, allowing users to override system instructions.
+**Learning:** LLMs cannot distinguish between "instructions" and "data" if they are mixed freely.
+**Prevention:** Wrap all user-provided data in XML tags (e.g., `<topic>Data</topic>`) and explicitly reference these tags in the system prompt to enforce separation of concerns.
