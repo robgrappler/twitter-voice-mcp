@@ -80,7 +80,6 @@ class AIHandler:
         </voice_profile>
         
         Task: Write {count} distinct tweets about the topic provided in the <topic> tags.
-
         <topic>{topic}</topic>
         
         Constraints:
