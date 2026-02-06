@@ -85,9 +85,7 @@ def import_voice_profile(content: str) -> str:
     Overwrites the current voice profile.
     """
     try:
-        os.makedirs(os.path.dirname(ai_handler.voice_profile_path), exist_ok=True)
-        with open(ai_handler.voice_profile_path, "w") as f:
-            f.write(content)
+        ai_handler.save_voice_profile(content)
         return "Voice profile imported successfully."
     except Exception as e:
         return f"Error importing profile: {str(e)}"
