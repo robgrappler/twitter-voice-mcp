@@ -12,6 +12,7 @@ class AIHandler:
         self.model = "gemini-1.5-flash"
         self.api_key = os.getenv("GEMINI_API_KEY")
         self.voice_profile_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "voice_profile.txt")
+        self._voice_profile_cache = None
         self.client = None
 
         # Initialize default from env if available
@@ -55,18 +56,24 @@ class AIHandler:
         """
         
         response = self._call_model(prompt)
-        
-        # Save profile
-        os.makedirs(os.path.dirname(self.voice_profile_path), exist_ok=True)
-        with open(self.voice_profile_path, "w") as f:
-            f.write(response)
-            
+        self.save_voice_profile(response)
         return response
 
+    def save_voice_profile(self, content: str):
+        """Saves the voice profile to disk and updates the memory cache."""
+        os.makedirs(os.path.dirname(self.voice_profile_path), exist_ok=True)
+        with open(self.voice_profile_path, "w") as f:
+            f.write(content)
+        self._voice_profile_cache = content
+
     def get_voice_profile(self) -> str:
+        if self._voice_profile_cache is not None:
+            return self._voice_profile_cache
+
         if os.path.exists(self.voice_profile_path):
             with open(self.voice_profile_path, "r") as f:
-                return f.read()
+                self._voice_profile_cache = f.read()
+                return self._voice_profile_cache
         return "No voice profile found. Please run analyze_voice first."
 
     def generate_tweet(self, topic: str, count: int = 1) -> List[str]:

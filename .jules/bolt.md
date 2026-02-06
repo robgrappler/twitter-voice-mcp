@@ -9,3 +9,7 @@
 ## 2025-01-27 - [Lazy Loading AI Libraries]
 **Learning:** Top-level imports of heavy AI client libraries (google.generativeai, openai, anthropic) caused a ~2.7s startup delay.
 **Action:** Implemented lazy loading by moving imports inside `configure` and `_call_model` methods, reducing import time to ~0.1s and only loading what is needed.
+
+## 2025-01-27 - [Voice Profile Caching]
+**Learning:** `AIHandler` was reading `voice_profile.txt` on every generation request, causing unnecessary I/O overhead for static data.
+**Action:** Implemented in-memory caching in `AIHandler` to load the profile once and update only on change, reducing disk reads.
