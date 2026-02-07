@@ -9,6 +9,7 @@ import uuid
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 DRAFTS_FILE = os.path.join(DATA_DIR, "drafts.csv")
 POSTED_LOG = os.path.join(DATA_DIR, "posted_history.csv")
+POST_ATTEMPT_LOG = os.path.join(DATA_DIR, "post_log.csv")
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -29,6 +30,12 @@ class DataManager:
                 "id", "text", "media_path", "posted_at", "tweet_id"
             ])
             df.to_csv(POSTED_LOG, index=False)
+        
+        if not os.path.exists(POST_ATTEMPT_LOG):
+            df = pd.DataFrame(columns=[
+                "timestamp", "draft_id", "status", "tweet_id", "error", "text"
+            ])
+            df.to_csv(POST_ATTEMPT_LOG, index=False)
 
     def add_draft(self, text: str, media_path: str = None, model: str = "manual", 
                  notes: str = "", is_retweet: bool = False, original_tweet_id: str = None) -> str:
@@ -104,6 +111,24 @@ class DataManager:
         with open(POSTED_LOG, 'a', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow(row)
+
+    def log_attempt(self, status: str, draft_id: str = "", tweet_id: str = "", error: str = "", text: str = ""):
+        """
+        Logs a posting attempt (success or fail) to post_log.csv.
+        """
+        row = [
+            datetime.now().isoformat(),
+            draft_id,
+            status,
+            tweet_id,
+            error,
+            text[:50] + "..." if text and len(text) > 50 else text
+        ]
+        
+        with open(POST_ATTEMPT_LOG, 'a', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(row)
+
     def _sanitize_csv_field(self, field: any) -> any:
         """
         Sanitize a field for CSV injection (Excel formula injection).

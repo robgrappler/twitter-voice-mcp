@@ -7,7 +7,7 @@ Fetches all due scheduled tweets and posts them to Twitter.
 import sys
 import os
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timezone
 from scheduler import TweetScheduler
 from twitter_handler import TwitterHandler
 from data_handler import DataManager
@@ -22,11 +22,24 @@ def main():
         # Get all tweets due for posting
         due_posts = scheduler.get_due_posts()
         
+        # Check if current time is a strategy slot
+        now_utc = datetime.now(timezone.utc)
+        if scheduler.is_strategy_slot(now_utc):
+            print(f"[{now_utc.isoformat()}] Current time is a strategy slot. Checking for pending drafts...")
+            next_draft = scheduler.get_next_pending_draft()
+            if next_draft:
+                print(f"  Found pending draft [{next_draft['id']}]. Adding to processing list.")
+                # Avoid duplicates if it was already manually scheduled (unlikely but safe)
+                if not any(p['id'] == next_draft['id'] for p in due_posts):
+                    due_posts.append(next_draft)
+            else:
+                print("  No pending drafts found for this strategy slot.")
+        
         if not due_posts:
-            print(f"[{datetime.now().isoformat()}] No posts due at this time.")
+            print(f"[{datetime.now().isoformat()}] No posts due or slots active.")
             return 0
         
-        print(f"[{datetime.now().isoformat()}] Found {len(due_posts)} posts due for posting.")
+        print(f"[{datetime.now().isoformat()}] Processing {len(due_posts)} posts.")
         
         posted_count = 0
         failed_count = 0
@@ -43,17 +56,22 @@ def main():
                 result = twitter.post_tweet(text, media_path if media_path else None)
                 
                 if "error" in result:
-                    print(f"    ERROR: {result['error']}")
+                    error_msg = result['error']
+                    print(f"    ERROR: {error_msg}")
+                    data_manager.log_attempt("failed", draft_id=draft_id, error=error_msg, text=text)
                     failed_count += 1
                     continue
                 
                 tweet_id = result.get("data", {}).get("id")
                 data_manager.mark_as_posted(draft_id, tweet_id, text, media_path)
+                data_manager.log_attempt("success", draft_id=draft_id, tweet_id=tweet_id, text=text)
                 print(f"    SUCCESS: Posted as tweet {tweet_id}")
                 posted_count += 1
                 
             except Exception as e:
-                print(f"    ERROR: {str(e)}")
+                error_msg = str(e)
+                print(f"    ERROR: {error_msg}")
+                data_manager.log_attempt("error", draft_id=draft_id, error=error_msg, text=text)
                 failed_count += 1
         
         print(f"[{datetime.now().isoformat()}] Posted {posted_count}, Failed {failed_count}")

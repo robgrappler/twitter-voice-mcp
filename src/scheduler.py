@@ -1,6 +1,6 @@
 import os
-from datetime import datetime
-from typing import Optional, List
+from datetime import datetime, timezone, timedelta
+from typing import Optional, List, Dict
 import pandas as pd
 from data_handler import DataManager
 
@@ -56,6 +56,43 @@ class TweetScheduler:
         except Exception as e:
             print(f"Error getting due posts: {e}")
             return []
+    
+    def get_next_pending_draft(self) -> Optional[Dict]:
+        """Fetch the oldest pending draft."""
+        drafts = self.data_manager.list_pending_drafts()
+        if not drafts:
+            return None
+        # drafts are returned as list of dicts, created_at is ISO string
+        # They should be sorted by created_at naturally if appended to CSV
+        return drafts[0]
+
+    def is_strategy_slot(self, dt_utc: datetime) -> bool:
+        """
+        Check if the given UTC time matches a strategy slot.
+        Vampire Mode (CST): Mon/Tue/Fri at 00:00, 01:00, 02:00
+        Growth Mode (CST): Everyday at 08:00, 14:00
+        CST is UTC-6.
+        """
+        # Convert UTC to CST (UTC-6)
+        cst_time = dt_utc - timedelta(hours=6)
+        
+        hour = cst_time.hour
+        minute = cst_time.minute
+        weekday = cst_time.weekday() # 0 is Monday
+        
+        # Only check at the top of the hour (allowing for some drift, e.g., first 5 mins)
+        if minute >= 5:
+            return False
+            
+        # Growth Mode: Everyday at 08:00 and 14:00 CST
+        if hour in [8, 14]:
+            return True
+            
+        # Vampire Mode: Mon(0), Tue(1), Fri(4) at 00:00, 01:00, 02:00 CST
+        if weekday in [0, 1, 4] and hour in [0, 1, 2]:
+            return True
+            
+        return False
     
     def list_scheduled(self) -> List[dict]:
         """List all scheduled posts."""

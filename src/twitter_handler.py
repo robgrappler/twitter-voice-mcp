@@ -3,6 +3,8 @@ import requests
 from requests_oauthlib import OAuth1Session
 import json
 import logging
+import time
+import tempfile
 from typing import List, Dict, Optional
 
 logger = logging.getLogger(__name__)
@@ -43,30 +45,129 @@ class TwitterHandler:
 
     def upload_media(self, file_path: str) -> Optional[str]:
         """
-        Uploads media using v1.1 API and returns media_id.
+        Uploads media using v1.1 API (chunked) and returns media_id.
+        Supports both local paths and URLs.
         """
         if not self.session:
             raise Exception("Twitter credentials not configured")
             
-        url = "https://upload.twitter.com/1.1/media/upload.json"
-        
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"Media file not found: {file_path}")
-            
+        temp_file = None
         try:
-            with open(file_path, 'rb') as f:
-                files = {'media': f}
-                response = self.session.post(url, files=files)
+            # Handle URL
+            if file_path.startswith(('http://', 'https://')):
+                logger.info(f"Downloading media from URL: {file_path}")
+                response = requests.get(file_path, stream=True)
+                if response.status_code != 200:
+                    logger.error(f"Failed to download media: {response.text}")
+                    return None
                 
-            if response.status_code == 200:
-                media_id = response.json().get('media_id_string')
-                return media_id
-            else:
-                logger.error(f"Media upload failed: {response.text}")
-                return None
+                # Use a specific extension if possible
+                ext = os.path.splitext(file_path)[1].split('?')[0]
+                if not ext: ext = ".tmp"
+                
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+                for chunk in response.iter_content(chunk_size=8192):
+                    temp_file.write(chunk)
+                temp_file.close()
+                file_path = temp_file.name
+
+            if not os.path.exists(file_path):
+                raise FileNotFoundError(f"Media file not found: {file_path}")
+            
+            # Use chunked upload for all files (reliable for large images/videos)
+            return self._chunked_upload(file_path)
+            
         except Exception as e:
             logger.error(f"Error uploading media: {str(e)}")
             return None
+        finally:
+            if temp_file and os.path.exists(temp_file.name):
+                try:
+                    os.unlink(temp_file.name)
+                except:
+                    pass
+
+    def _chunked_upload(self, file_path: str) -> Optional[str]:
+        """
+        Performs a chunked media upload (v1.1).
+        """
+        url = "https://upload.twitter.com/1.1/media/upload.json"
+        
+        file_size = os.path.getsize(file_path)
+        # Determine media type
+        ext = os.path.splitext(file_path)[1].lower()
+        if ext in ['.mp4', '.mov']: media_type = 'video/mp4'
+        elif ext == '.gif': media_type = 'image/gif'
+        else: media_type = 'image/jpeg' # Default
+        
+        # 1. INIT
+        params = {
+            "command": "INIT",
+            "total_bytes": file_size,
+            "media_type": media_type,
+        }
+        resp = self.session.post(url, data=params)
+        if resp.status_code != 202:
+            logger.error(f"INIT failed: {resp.text}")
+            return None
+        
+        media_id = resp.json().get('media_id_string')
+        
+        # 2. APPEND
+        segment_id = 0
+        with open(file_path, 'rb') as f:
+            while True:
+                chunk = f.read(1024 * 1024 * 4) # 4MB chunks
+                if not chunk:
+                    break
+                
+                params = {
+                    "command": "APPEND",
+                    "media_id": media_id,
+                    "segment_index": segment_id
+                }
+                files = {"media": chunk}
+                resp = self.session.post(url, data=params, files=files)
+                if resp.status_code < 200 or resp.status_code > 299:
+                    logger.error(f"APPEND failed segment {segment_id}: {resp.text}")
+                    return None
+                segment_id += 1
+                
+        # 3. FINALIZE
+        params = {
+            "command": "FINALIZE",
+            "media_id": media_id
+        }
+        resp = self.session.post(url, data=params)
+        if resp.status_code != 200:
+            logger.error(f"FINALIZE failed: {resp.text}")
+            return None
+            
+        # 4. STATUS (Optional but recommended for video)
+        if media_type.startswith('video'):
+            check_url = url
+            while True:
+                params = {
+                    "command": "STATUS",
+                    "media_id": media_id
+                }
+                resp = self.session.get(check_url, params=params)
+                if resp.status_code != 200:
+                    logger.error(f"STATUS check failed: {resp.text}")
+                    return None
+                
+                status_data = resp.json()
+                state = status_data.get('processing_info', {}).get('state')
+                if state == 'succeeded':
+                    break
+                if state == 'failed':
+                    logger.error(f"Media processing failed: {status_data}")
+                    return None
+                
+                wait = status_data.get('processing_info', {}).get('check_after_secs', 5)
+                time.sleep(wait)
+                
+        return media_id
 
     def post_tweet(self, text: str, media_path: str = None, reply_to_id: str = None) -> Dict:
         """
