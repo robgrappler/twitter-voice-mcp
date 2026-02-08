@@ -70,7 +70,7 @@ class AIHandler:
         self._voice_profile_cache = profile
 
     def get_voice_profile(self) -> str:
-        if self._voice_profile_cache:
+        if self._voice_profile_cache is not None:
             return self._voice_profile_cache
 
         if os.path.exists(self.voice_profile_path):
