@@ -36,8 +36,11 @@ class TestAIHandlerLazy(unittest.TestCase):
         # Mock env vars
         with patch.dict(os.environ, {"GEMINI_API_KEY": "fake_key"}):
             # Mock the module import
+            mock_google = MagicMock()
             mock_genai = MagicMock()
-            with patch.dict(sys.modules, {'google.generativeai': mock_genai}):
+            mock_google.generativeai = mock_genai
+            # Also mock 'google' to prevent ModuleNotFoundError
+            with patch.dict(sys.modules, {'google': mock_google, 'google.generativeai': mock_genai}):
                 from ai_handler import AIHandler
                 handler = AIHandler()
 
@@ -64,12 +67,15 @@ class TestAIHandlerLazy(unittest.TestCase):
     def test_call_model_imports_genai(self):
         # Test that _call_model imports genai if not already imported (or uses it)
         with patch.dict(os.environ, {"GEMINI_API_KEY": "fake_key"}):
+            mock_google = MagicMock()
             mock_genai = MagicMock()
+            mock_google.generativeai = mock_genai
             mock_model = MagicMock()
             mock_genai.GenerativeModel.return_value = mock_model
             mock_model.generate_content.return_value.text = "Generated content"
 
-            with patch.dict(sys.modules, {'google.generativeai': mock_genai}):
+            # Also mock 'google'
+            with patch.dict(sys.modules, {'google': mock_google, 'google.generativeai': mock_genai}):
                 from ai_handler import AIHandler
                 handler = AIHandler()
 
