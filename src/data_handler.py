@@ -15,7 +15,20 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 class DataManager:
     def __init__(self):
+        self._df_cache = None
+        self._last_mtime = 0
         self._init_csvs()
+
+    def _get_df(self) -> pd.DataFrame:
+        """
+        Smart loader for drafts CSV.
+        Only reloads if the file has been modified since last read.
+        """
+        current_mtime = os.path.getmtime(DRAFTS_FILE)
+        if self._df_cache is None or current_mtime > self._last_mtime:
+            self._df_cache = pd.read_csv(DRAFTS_FILE, keep_default_na=False)
+            self._last_mtime = current_mtime
+        return self._df_cache
 
     def _init_csvs(self):
         if not os.path.exists(DRAFTS_FILE):
@@ -63,22 +76,24 @@ class DataManager:
         return draft_id
 
     def list_pending_drafts(self) -> List[Dict]:
-        df = pd.read_csv(DRAFTS_FILE, keep_default_na=False)
+        df = self._get_df()
         pending = df[df["status"] == "pending"]
         return pending.to_dict("records")
 
     def get_draft(self, draft_id: str) -> Optional[Dict]:
-        df = pd.read_csv(DRAFTS_FILE, keep_default_na=False)
+        df = self._get_df()
         row = df[df["id"] == draft_id]
         if row.empty:
             return None
         return row.iloc[0].to_dict()
 
     def update_draft_status(self, draft_id: str, status: str):
-        df = pd.read_csv(DRAFTS_FILE, keep_default_na=False)
+        df = self._get_df()
         if draft_id in df["id"].values:
             df.loc[df["id"] == draft_id, "status"] = status
             df.to_csv(DRAFTS_FILE, index=False)
+            # Update last_mtime to avoid reloading after our own write
+            self._last_mtime = os.path.getmtime(DRAFTS_FILE)
 
     def mark_as_posted(self, draft_id: str, tweet_id: str, text: str = None, media_path: str = None):
         """
@@ -144,7 +159,7 @@ class DataManager:
         Prevents CSV formula injection.
         """
         safe_file = os.path.join(DATA_DIR, "drafts_safe_export.csv")
-        df = pd.read_csv(DRAFTS_FILE, keep_default_na=False)
+        df = self._get_df()
         safe_df = df.map(self._sanitize_csv_field)
         safe_df.to_csv(safe_file, index=False)
         return safe_file

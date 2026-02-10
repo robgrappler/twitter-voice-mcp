@@ -13,3 +13,7 @@
 ## 2025-01-27 - [Voice Profile Caching]
 **Learning:** The voice profile file (`voice_profile.txt`) was being read from disk on every tweet generation request, adding unnecessary I/O overhead.
 **Action:** Implemented an in-memory cache in `AIHandler` that stores the profile after the first read or analysis, and updates it on save, reducing file reads to once per session (or update).
+
+## 2025-01-27 - [Drafts CSV Caching]
+**Learning:** Repeatedly reading the entire `drafts.csv` file for operations like `list_pending_drafts`, `get_draft`, and `update_draft_status` is O(N) and inefficient for large datasets.
+**Action:** Implemented a smart in-memory cache in `DataManager` that only reloads the DataFrame if the file's modification time (mtime) has changed. Also optimized `update_draft_status` to update the cache's mtime after writing, avoiding immediate reload.
