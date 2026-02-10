@@ -1,6 +1,7 @@
 import os
 from typing import List, Optional, Union
 import json
+import html
 try:
     from PIL import Image
 except ImportError:
@@ -81,13 +82,18 @@ class AIHandler:
 
     def generate_tweet(self, topic: str, count: int = 1) -> List[str]:
         voice_profile = self.get_voice_profile()
+        safe_topic = html.escape(topic)
         prompt = f"""
         You are a ghostwriter for a specific persona. Here is their voice profile:
         <voice_profile>
         {voice_profile}
         </voice_profile>
         
-        Task: Write {count} distinct tweets about: "{topic}".
+        Task: Write {count} distinct tweets about the topic provided in the <topic> tags.
+
+        <topic>
+        {safe_topic}
+        </topic>
         
         Constraints:
         - Strictly follow the voice profile (tone, emojis, formatting).
@@ -110,14 +116,18 @@ class AIHandler:
 
     def generate_retweet_comment(self, original_tweet_text: str) -> str:
         voice_profile = self.get_voice_profile()
+        safe_tweet = html.escape(original_tweet_text)
         prompt = f"""
         You are a ghostwriter for a specific persona. Here is their voice profile:
         <voice_profile>
         {voice_profile}
         </voice_profile>
         
-        Task: Write a Quote Tweet comment for the following tweet:
-        "{original_tweet_text}"
+        Task: Write a Quote Tweet comment for the tweet content provided in the <original_tweet> tags.
+
+        <original_tweet>
+        {safe_tweet}
+        </original_tweet>
         
         Constraints:
         - Strictly follow the voice profile.
