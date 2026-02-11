@@ -87,7 +87,11 @@ class AIHandler:
         {voice_profile}
         </voice_profile>
         
-        Task: Write {count} distinct tweets about: "{topic}".
+        Task: Write {count} distinct tweets about the following topic.
+
+        <topic>
+        {topic}
+        </topic>
         
         Constraints:
         - Strictly follow the voice profile (tone, emojis, formatting).
@@ -116,8 +120,11 @@ class AIHandler:
         {voice_profile}
         </voice_profile>
         
-        Task: Write a Quote Tweet comment for the following tweet:
-        "{original_tweet_text}"
+        Task: Write a Quote Tweet comment for the following tweet.
+
+        <original_tweet>
+        {original_tweet_text}
+        </original_tweet>
         
         Constraints:
         - Strictly follow the voice profile.
