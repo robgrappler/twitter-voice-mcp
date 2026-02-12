@@ -1,16 +1,16 @@
 
 import sys
 import os
-import pandas as pd
+import csv
 import unittest
 import tempfile
 import shutil
-from unittest.mock import patch
+# from unittest.mock import patch # Removed patch
 
 # Add src to sys.path
 sys.path.append(os.path.join(os.getcwd(), 'src'))
 
-from data_handler import DataManager
+import data_handler
 
 class TestSecurityCSVInjection(unittest.TestCase):
     def setUp(self):
@@ -20,24 +20,28 @@ class TestSecurityCSVInjection(unittest.TestCase):
         self.safe_file = os.path.join(self.test_dir, "drafts_safe_export.csv")
 
         # Initialize an empty drafts file
-        df = pd.DataFrame(columns=[
+        headers = [
             "id", "text", "media_path", "model_used", "status",
             "created_at", "scheduled_time", "notes", "is_retweet", "original_tweet_id"
-        ])
-        df.to_csv(self.drafts_file, index=False)
+        ]
+        with open(self.drafts_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(headers)
 
-        # We need to patch the constants in data_handler module
-        self.patcher_file = patch('data_handler.DRAFTS_FILE', self.drafts_file)
-        self.patcher_dir = patch('data_handler.DATA_DIR', self.test_dir)
+        # Direct assignment instead of patch, matching test_data_handler.py pattern
+        self.original_drafts_file = data_handler.DRAFTS_FILE
+        self.original_data_dir = data_handler.DATA_DIR
 
-        self.patcher_file.start()
-        self.patcher_dir.start()
+        data_handler.DRAFTS_FILE = self.drafts_file
+        data_handler.DATA_DIR = self.test_dir
 
-        self.dm = DataManager()
+        self.dm = data_handler.DataManager()
 
     def tearDown(self):
-        self.patcher_file.stop()
-        self.patcher_dir.stop()
+        # Restore globals
+        data_handler.DRAFTS_FILE = self.original_drafts_file
+        data_handler.DATA_DIR = self.original_data_dir
+
         shutil.rmtree(self.test_dir)
 
     def test_safe_export_sanitization(self):
@@ -48,7 +52,7 @@ class TestSecurityCSVInjection(unittest.TestCase):
         self.dm.add_draft(text=malicious_text, notes=malicious_note)
 
         # Verify raw storage (should be unsanitized)
-        with open(self.drafts_file, 'r') as f:
+        with open(self.drafts_file, 'r', newline='', encoding='utf-8') as f:
             content = f.read()
             # We look for the raw string. In CSV it might be ,=1+1,
             self.assertIn(f"{malicious_text}", content)
@@ -63,7 +67,7 @@ class TestSecurityCSVInjection(unittest.TestCase):
         self.assertTrue(os.path.exists(safe_path))
 
         # Verify sanitized content
-        with open(safe_path, 'r') as f:
+        with open(safe_path, 'r', newline='', encoding='utf-8') as f:
             safe_content = f.read()
 
         # Should contain sanitized text (starts with ')

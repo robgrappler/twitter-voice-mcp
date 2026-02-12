@@ -1,7 +1,9 @@
 import os
+import csv
+import shutil
+import tempfile
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict
-import pandas as pd
 from data_handler import DataManager
 
 class TweetScheduler:
@@ -9,30 +11,52 @@ class TweetScheduler:
     
     def __init__(self):
         self.data_manager = DataManager()
-        self.schedule_file = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)), 
-            "data", 
-            "schedule.json"
-        )
+        # schedule.json is legacy/unused, ignoring as per original code behavior (which ignored it in favor of drafts.csv)
     
     def schedule_draft(self, draft_id: str, scheduled_time: str) -> bool:
         """
         Schedule a draft for posting at a specific time.
         Format: ISO 8601 (YYYY-MM-DDTHH:MM:SS)
         """
+        drafts_file = self.data_manager.get_path_to_drafts_file()
+        if not os.path.exists(drafts_file):
+            return False
+
         try:
             # Validate ISO format
             datetime.fromisoformat(scheduled_time)
             
-            df = pd.read_csv(self.data_manager.get_path_to_drafts_file(), keep_default_na=False)
-            if draft_id not in df["id"].values:
-                return False
+            updated = False
+            temp_file = tempfile.NamedTemporaryFile(mode='w', newline='', encoding='utf-8', delete=False, dir=os.path.dirname(drafts_file))
             
-            df.loc[df["id"] == draft_id, "scheduled_time"] = scheduled_time
-            df.loc[df["id"] == draft_id, "status"] = "scheduled"
-            df.to_csv(self.data_manager.get_path_to_drafts_file(), index=False)
-            
-            return True
+            try:
+                with open(drafts_file, 'r', newline='', encoding='utf-8') as f_in, temp_file:
+                    reader = csv.DictReader(f_in)
+                    fieldnames = reader.fieldnames
+                    writer = csv.DictWriter(temp_file, fieldnames=fieldnames)
+                    writer.writeheader()
+
+                    found = False
+                    for row in reader:
+                        if row.get("id") == draft_id:
+                            row["scheduled_time"] = scheduled_time
+                            row["status"] = "scheduled"
+                            found = True
+                            updated = True
+                        writer.writerow(row)
+
+                if updated:
+                    shutil.move(temp_file.name, drafts_file)
+                    return True
+                else:
+                    os.unlink(temp_file.name)
+                    return False
+
+            except Exception as e:
+                if os.path.exists(temp_file.name):
+                    os.unlink(temp_file.name)
+                raise e
+
         except Exception as e:
             print(f"Error scheduling draft: {e}")
             return False
@@ -42,17 +66,23 @@ class TweetScheduler:
         Get all posts that are due to be posted now.
         Used by GitHub Actions or cron job.
         """
+        drafts_file = self.data_manager.get_path_to_drafts_file()
+        if not os.path.exists(drafts_file):
+            return []
+
         try:
-            df = pd.read_csv(self.data_manager.get_path_to_drafts_file(), keep_default_na=False)
-            scheduled = df[df["status"] == "scheduled"]
-            
-            if scheduled.empty:
-                return []
-            
+            due_posts = []
             now = datetime.now().isoformat()
-            due = scheduled[scheduled["scheduled_time"] <= now]
             
-            return due.to_dict("records")
+            with open(drafts_file, 'r', newline='', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if row.get("status") == "scheduled":
+                        scheduled_time = row.get("scheduled_time")
+                        if scheduled_time and scheduled_time <= now:
+                            due_posts.append(row)
+
+            return due_posts
         except Exception as e:
             print(f"Error getting due posts: {e}")
             return []
@@ -96,26 +126,60 @@ class TweetScheduler:
     
     def list_scheduled(self) -> List[dict]:
         """List all scheduled posts."""
+        drafts_file = self.data_manager.get_path_to_drafts_file()
+        if not os.path.exists(drafts_file):
+            return []
+
         try:
-            df = pd.read_csv(self.data_manager.get_path_to_drafts_file(), keep_default_na=False)
-            scheduled = df[df["status"] == "scheduled"]
-            return scheduled.to_dict("records")
+            scheduled = []
+            with open(drafts_file, 'r', newline='', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if row.get("status") == "scheduled":
+                        scheduled.append(row)
+            return scheduled
         except Exception as e:
             print(f"Error listing scheduled: {e}")
             return []
     
     def unschedule_draft(self, draft_id: str) -> bool:
         """Unschedule a draft, returning it to pending status."""
+        drafts_file = self.data_manager.get_path_to_drafts_file()
+        if not os.path.exists(drafts_file):
+            return False
+            
         try:
-            df = pd.read_csv(self.data_manager.get_path_to_drafts_file(), keep_default_na=False)
-            if draft_id not in df["id"].values:
-                return False
+            updated = False
+            temp_file = tempfile.NamedTemporaryFile(mode='w', newline='', encoding='utf-8', delete=False, dir=os.path.dirname(drafts_file))
             
-            df.loc[df["id"] == draft_id, "scheduled_time"] = ""
-            df.loc[df["id"] == draft_id, "status"] = "pending"
-            df.to_csv(self.data_manager.get_path_to_drafts_file(), index=False)
-            
-            return True
+            try:
+                with open(drafts_file, 'r', newline='', encoding='utf-8') as f_in, temp_file:
+                    reader = csv.DictReader(f_in)
+                    fieldnames = reader.fieldnames
+                    writer = csv.DictWriter(temp_file, fieldnames=fieldnames)
+                    writer.writeheader()
+
+                    found = False
+                    for row in reader:
+                        if row.get("id") == draft_id:
+                            row["scheduled_time"] = ""
+                            row["status"] = "pending"
+                            found = True
+                            updated = True
+                        writer.writerow(row)
+
+                if updated:
+                    shutil.move(temp_file.name, drafts_file)
+                    return True
+                else:
+                    os.unlink(temp_file.name)
+                    return False
+
+            except Exception as e:
+                if os.path.exists(temp_file.name):
+                    os.unlink(temp_file.name)
+                raise e
+
         except Exception as e:
             print(f"Error unscheduling draft: {e}")
             return False

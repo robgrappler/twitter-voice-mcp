@@ -2,7 +2,7 @@ import unittest
 import os
 import shutil
 import tempfile
-import pandas as pd
+import csv
 import sys
 import importlib
 
@@ -48,13 +48,15 @@ class TestDataManager(unittest.TestCase):
         self.assertEqual(draft["status"], "posted")
 
         # 4. Verify appended to posted_history.csv
-        df = pd.read_csv(data_handler.POSTED_LOG, dtype=str)
+        with open(data_handler.POSTED_LOG, 'r', newline='') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
 
-        self.assertEqual(len(df), 1)
-        self.assertEqual(df.iloc[0]["id"], draft_id)
-        self.assertEqual(df.iloc[0]["tweet_id"], tweet_id)
-        self.assertEqual(df.iloc[0]["text"], "Test Tweet")
-        self.assertEqual(df.iloc[0]["media_path"], "media.jpg")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["id"], draft_id)
+        self.assertEqual(rows[0]["tweet_id"], tweet_id)
+        self.assertEqual(rows[0]["text"], "Test Tweet")
+        self.assertEqual(rows[0]["media_path"], "media.jpg")
 
     def test_mark_as_posted_with_provided_data(self):
         # 1. Add a draft
@@ -69,13 +71,15 @@ class TestDataManager(unittest.TestCase):
         self.assertEqual(draft["status"], "posted")
 
         # 4. Verify appended to posted_history.csv
-        df = pd.read_csv(data_handler.POSTED_LOG, dtype=str)
+        with open(data_handler.POSTED_LOG, 'r', newline='') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
 
-        self.assertEqual(len(df), 1)
-        self.assertEqual(df.iloc[0]["id"], draft_id)
-        self.assertEqual(df.iloc[0]["tweet_id"], tweet_id)
-        self.assertEqual(df.iloc[0]["text"], "Test Tweet 2")
-        self.assertEqual(df.iloc[0]["media_path"], "media2.jpg")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["id"], draft_id)
+        self.assertEqual(rows[0]["tweet_id"], tweet_id)
+        self.assertEqual(rows[0]["text"], "Test Tweet 2")
+        self.assertEqual(rows[0]["media_path"], "media2.jpg")
 
 if __name__ == "__main__":
     unittest.main()
