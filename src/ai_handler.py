@@ -1,6 +1,7 @@
 import os
 from typing import List, Optional, Union
 import json
+import html
 try:
     from PIL import Image
 except ImportError:
@@ -41,6 +42,9 @@ class AIHandler:
             self.client = Anthropic(api_key=self.api_key)
             
     def analyze_style(self, tweets: List[str]) -> str:
+        # Sanitize tweets to prevent injection
+        sanitized_tweets = [html.escape(t) for t in tweets]
+
         prompt = f"""
         Analyze the following tweets to understand the author's voice, style, and persona.
         Pay attention to:
@@ -50,7 +54,7 @@ class AIHandler:
         4. Themes (e.g., wrestling, fitness, coding)
         
         Tweets:
-        {json.dumps(tweets, indent=2)}
+        {json.dumps(sanitized_tweets, indent=2)}
         
         Output a concise "Voice Profile" description that can be used to instruct an AI to generate new tweets in this exact style.
         """
@@ -84,10 +88,10 @@ class AIHandler:
         prompt = f"""
         You are a ghostwriter for a specific persona. Here is their voice profile:
         <voice_profile>
-        {voice_profile}
+        {html.escape(voice_profile)}
         </voice_profile>
         
-        Task: Write {count} distinct tweets about: "{topic}".
+        Task: Write {count} distinct tweets about: "{html.escape(topic)}".
         
         Constraints:
         - Strictly follow the voice profile (tone, emojis, formatting).
@@ -113,11 +117,11 @@ class AIHandler:
         prompt = f"""
         You are a ghostwriter for a specific persona. Here is their voice profile:
         <voice_profile>
-        {voice_profile}
+        {html.escape(voice_profile)}
         </voice_profile>
         
         Task: Write a Quote Tweet comment for the following tweet:
-        "{original_tweet_text}"
+        "{html.escape(original_tweet_text)}"
         
         Constraints:
         - Strictly follow the voice profile.
@@ -136,7 +140,7 @@ class AIHandler:
         prompt = f"""
         You are a ghostwriter for a specific persona. Here is their voice profile:
         <voice_profile>
-        {voice_profile}
+        {html.escape(voice_profile)}
         </voice_profile>
         
         Task: Analyze the provided image and write {count} distinct tweets based on it.
