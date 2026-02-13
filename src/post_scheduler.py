@@ -12,9 +12,28 @@ from scheduler import TweetScheduler
 from twitter_handler import TwitterHandler
 from data_handler import DataManager
 
+
+def _missing_twitter_credentials() -> list[str]:
+    required = [
+        "TWITTER_CONSUMER_KEY",
+        "TWITTER_CONSUMER_SECRET",
+        "TWITTER_ACCESS_TOKEN",
+        "TWITTER_ACCESS_TOKEN_SECRET",
+    ]
+    return [key for key in required if not os.getenv(key)]
+
 def main():
     load_dotenv()
     try:
+        missing_keys = _missing_twitter_credentials()
+        if missing_keys:
+            print(
+                f"[{datetime.now().isoformat()}] "
+                f"Missing Twitter credentials: {', '.join(missing_keys)}. "
+                "Skipping scheduled posting."
+            )
+            return 0
+
         scheduler = TweetScheduler()
         twitter = TwitterHandler()
         data_manager = DataManager()
