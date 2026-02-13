@@ -1,6 +1,7 @@
 import os
 from typing import List, Optional, Union
 import json
+import html
 try:
     from PIL import Image
 except ImportError:
@@ -41,6 +42,9 @@ class AIHandler:
             self.client = Anthropic(api_key=self.api_key)
             
     def analyze_style(self, tweets: List[str]) -> str:
+        # Sanitize tweets to prevent prompt injection
+        escaped_tweets = [html.escape(t) for t in tweets]
+
         prompt = f"""
         Analyze the following tweets to understand the author's voice, style, and persona.
         Pay attention to:
@@ -49,8 +53,10 @@ class AIHandler:
         3. Vocabulary (e.g., specific slang, jargon)
         4. Themes (e.g., wrestling, fitness, coding)
         
-        Tweets:
-        {json.dumps(tweets, indent=2)}
+        Tweets (content within <tweets> tags):
+        <tweets>
+        {json.dumps(escaped_tweets, indent=2)}
+        </tweets>
         
         Output a concise "Voice Profile" description that can be used to instruct an AI to generate new tweets in this exact style.
         """
@@ -80,14 +86,19 @@ class AIHandler:
         return "No voice profile found. Please run analyze_voice first."
 
     def generate_tweet(self, topic: str, count: int = 1) -> List[str]:
-        voice_profile = self.get_voice_profile()
+        voice_profile = html.escape(self.get_voice_profile())
+        escaped_topic = html.escape(topic)
+
         prompt = f"""
         You are a ghostwriter for a specific persona. Here is their voice profile:
         <voice_profile>
         {voice_profile}
         </voice_profile>
         
-        Task: Write {count} distinct tweets about: "{topic}".
+        Task: Write {count} distinct tweets about the topic in <topic> tags.
+        <topic>
+        {escaped_topic}
+        </topic>
         
         Constraints:
         - Strictly follow the voice profile (tone, emojis, formatting).
@@ -109,15 +120,19 @@ class AIHandler:
         return clean_tweets[:count]
 
     def generate_retweet_comment(self, original_tweet_text: str) -> str:
-        voice_profile = self.get_voice_profile()
+        voice_profile = html.escape(self.get_voice_profile())
+        escaped_original_tweet = html.escape(original_tweet_text)
+
         prompt = f"""
         You are a ghostwriter for a specific persona. Here is their voice profile:
         <voice_profile>
         {voice_profile}
         </voice_profile>
         
-        Task: Write a Quote Tweet comment for the following tweet:
-        "{original_tweet_text}"
+        Task: Write a Quote Tweet comment for the following tweet in <original_tweet> tags:
+        <original_tweet>
+        {escaped_original_tweet}
+        </original_tweet>
         
         Constraints:
         - Strictly follow the voice profile.
@@ -132,7 +147,8 @@ class AIHandler:
         if not Image:
              return ["Error: Pillow library not installed. Please install it to use image features."]
              
-        voice_profile = self.get_voice_profile()
+        voice_profile = html.escape(self.get_voice_profile())
+
         prompt = f"""
         You are a ghostwriter for a specific persona. Here is their voice profile:
         <voice_profile>
