@@ -91,5 +91,30 @@ class TestScheduleLogic(unittest.TestCase):
         self.assertEqual(last_row["draft_id"], "test_id")
         self.assertIn(test_msg, last_row["text"])
 
+    def test_get_next_pending_draft(self):
+        # Create a mock drafts file with one pending draft
+        drafts_file = os.path.join(self.test_dir, "drafts.csv")
+        headers = ["id", "text", "media_path", "model_used", "status", "created_at", "scheduled_time", "notes", "is_retweet", "original_tweet_id"]
+
+        # Patch DRAFTS_FILE
+        original_drafts_file = data_handler.DRAFTS_FILE
+        data_handler.DRAFTS_FILE = drafts_file
+
+        try:
+            with open(drafts_file, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow(headers)
+                writer.writerow(["d1", "draft1", "", "manual", "posted", "", "", "", "False", ""])
+                writer.writerow(["d2", "draft2", "", "manual", "pending", "", "", "", "False", ""])
+                writer.writerow(["d3", "draft3", "", "manual", "pending", "", "", "", "False", ""])
+
+            # Should return the first pending draft (d2)
+            draft = self.scheduler.get_next_pending_draft()
+            self.assertIsNotNone(draft)
+            self.assertEqual(draft["id"], "d2")
+
+        finally:
+            data_handler.DRAFTS_FILE = original_drafts_file
+
 if __name__ == "__main__":
     unittest.main()

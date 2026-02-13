@@ -75,6 +75,21 @@ class DataManager:
                     pending.append(row)
         return pending
 
+    def get_first_pending_draft(self) -> Optional[Dict]:
+        """
+        Get the first pending draft from the drafts CSV.
+        Optimized to stop reading after finding the first pending draft.
+        """
+        if not os.path.exists(DRAFTS_FILE):
+            return None
+
+        with open(DRAFTS_FILE, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if row.get("status") == "pending":
+                    return row
+        return None
+
     def get_draft(self, draft_id: str) -> Optional[Dict]:
         if not os.path.exists(DRAFTS_FILE):
             return None
