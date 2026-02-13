@@ -1,5 +1,8 @@
 import sys
 import os
+import csv
+import tempfile
+import shutil
 from datetime import datetime, timezone, timedelta
 import unittest
 from unittest.mock import MagicMock, patch
@@ -8,11 +11,28 @@ from unittest.mock import MagicMock, patch
 sys.path.append(os.path.abspath("src"))
 
 from scheduler import TweetScheduler
+import data_handler
 from data_handler import DataManager
 
 class TestScheduleLogic(unittest.TestCase):
     def setUp(self):
         self.scheduler = TweetScheduler()
+        self.test_dir = tempfile.mkdtemp()
+        self.post_log = os.path.join(self.test_dir, "post_log.csv")
+
+        # Initialize post log with headers
+        headers = ["timestamp", "draft_id", "status", "tweet_id", "error", "text"]
+        with open(self.post_log, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(headers)
+
+        # Patch POST_ATTEMPT_LOG
+        self.original_post_log = data_handler.POST_ATTEMPT_LOG
+        data_handler.POST_ATTEMPT_LOG = self.post_log
+
+    def tearDown(self):
+        data_handler.POST_ATTEMPT_LOG = self.original_post_log
+        shutil.rmtree(self.test_dir)
 
     def test_vampire_mode_slots(self):
         # Vampire Mode (CST): Mon, Tue, Fri at 00:00, 01:00, 02:00
@@ -53,19 +73,20 @@ class TestScheduleLogic(unittest.TestCase):
 
     def test_log_attempt(self):
         data_manager = DataManager()
-        log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "post_log.csv")
         
         # Log a dummy attempt
         test_msg = "Verification test message"
         data_manager.log_attempt("success", draft_id="test_id", text=test_msg)
         
         # Verify it exists
-        self.assertTrue(os.path.exists(log_path))
+        self.assertTrue(os.path.exists(self.post_log))
         
         # Read and check content
-        import pandas as pd
-        df = pd.read_csv(log_path)
-        last_row = df.iloc[-1]
+        with open(self.post_log, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+
+        last_row = rows[-1]
         self.assertEqual(last_row["status"], "success")
         self.assertEqual(last_row["draft_id"], "test_id")
         self.assertIn(test_msg, last_row["text"])
