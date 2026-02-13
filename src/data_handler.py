@@ -72,7 +72,7 @@ class DataManager:
             reader = csv.DictReader(f)
             for row in reader:
                 if row.get("status") == "pending":
-                    pending.append(row)
+                    pending.append(self.process_row(row))
         return pending
 
     def get_draft(self, draft_id: str) -> Optional[Dict]:
@@ -83,8 +83,19 @@ class DataManager:
             reader = csv.DictReader(f)
             for row in reader:
                 if row.get("id") == draft_id:
-                    return row
+                    return self.process_row(row)
         return None
+
+    def process_row(self, row: Dict[str, str]) -> Dict:
+        """
+        Convert CSV string values back to native types where necessary.
+        """
+        # Convert "True"/"False" strings to boolean
+        if "is_retweet" in row:
+            val = row["is_retweet"]
+            if isinstance(val, str):
+                row["is_retweet"] = val.lower() == "true"
+        return row
 
     def update_draft_status(self, draft_id: str, status: str):
         if not os.path.exists(DRAFTS_FILE):

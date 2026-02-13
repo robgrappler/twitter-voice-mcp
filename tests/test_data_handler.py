@@ -81,5 +81,20 @@ class TestDataManager(unittest.TestCase):
         self.assertEqual(rows[0]["text"], "Test Tweet 2")
         self.assertEqual(rows[0]["media_path"], "media2.jpg")
 
+    def test_boolean_conversion(self):
+        # Test that booleans are preserved correctly
+        draft_id_true = self.data_manager.add_draft("Retweet", is_retweet=True)
+        draft_id_false = self.data_manager.add_draft("Tweet", is_retweet=False)
+
+        # Retrieve and check
+        draft_true = self.data_manager.get_draft(draft_id_true)
+        draft_false = self.data_manager.get_draft(draft_id_false)
+
+        self.assertIsInstance(draft_true["is_retweet"], bool)
+        self.assertTrue(draft_true["is_retweet"])
+
+        self.assertIsInstance(draft_false["is_retweet"], bool)
+        self.assertFalse(draft_false["is_retweet"])
+
 if __name__ == "__main__":
     unittest.main()

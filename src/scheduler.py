@@ -80,7 +80,7 @@ class TweetScheduler:
                     if row.get("status") == "scheduled":
                         scheduled_time = row.get("scheduled_time")
                         if scheduled_time and scheduled_time <= now:
-                            due_posts.append(row)
+                            due_posts.append(self.data_manager.process_row(row))
 
             return due_posts
         except Exception as e:
@@ -136,7 +136,7 @@ class TweetScheduler:
                 reader = csv.DictReader(f)
                 for row in reader:
                     if row.get("status") == "scheduled":
-                        scheduled.append(row)
+                        scheduled.append(self.data_manager.process_row(row))
             return scheduled
         except Exception as e:
             print(f"Error listing scheduled: {e}")
