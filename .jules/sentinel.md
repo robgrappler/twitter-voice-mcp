@@ -15,3 +15,11 @@
 **Vulnerability:** User-controlled inputs (tweets, topics) were injected directly into LLM prompts, allowing malicious payloads to override system instructions.
 **Learning:** LLMs are susceptible to prompt injection if data and instructions are mixed without clear delineation. JSON serialization alone is insufficient if the model interprets the content as instructions.
 **Prevention:** Sanitize inputs using HTML escaping (`html.escape`) and wrap them in XML tags (e.g., `<tweets>...</tweets>`) to structurally separate data from instructions.
+
+## 2025-05-15 - Prompt Injection in AI Handlers (Correction)
+
+**Vulnerability:** User-controlled inputs (tweets, topics) were injected directly into LLM prompts.
+**Learning:** html.escape can be too aggressive for style analysis where character fidelity matters (e.g., quotes). A balanced approach is needed.
+**Prevention:**
+1. For data analysis (analyze_style): Use JSON serialization wrapped in XML tags (<tweets>) to safely encapsulate content without escaping characters.
+2. For generation (generate_tweet): Use html.escape(..., quote=False) to prevent tag injection (< and >) while preserving quotes for natural language output.

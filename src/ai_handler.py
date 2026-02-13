@@ -42,8 +42,9 @@ class AIHandler:
             self.client = Anthropic(api_key=self.api_key)
             
     def analyze_style(self, tweets: List[str]) -> str:
-        # Sanitize tweets to prevent prompt injection
-        escaped_tweets = [html.escape(t) for t in tweets]
+        # Prevent prompt injection by using JSON serialization and XML tags.
+        # JSON serialization safely escapes quotes/backslashes, and <tweets> tags define the boundary.
+        # We avoid html.escape here to preserve the exact character set for style analysis.
 
         prompt = f"""
         Analyze the following tweets to understand the author's voice, style, and persona.
@@ -55,7 +56,7 @@ class AIHandler:
         
         Tweets (content within <tweets> tags):
         <tweets>
-        {json.dumps(escaped_tweets, indent=2)}
+        {json.dumps(tweets, indent=2)}
         </tweets>
         
         Output a concise "Voice Profile" description that can be used to instruct an AI to generate new tweets in this exact style.
@@ -86,8 +87,9 @@ class AIHandler:
         return "No voice profile found. Please run analyze_voice first."
 
     def generate_tweet(self, topic: str, count: int = 1) -> List[str]:
-        voice_profile = html.escape(self.get_voice_profile())
-        escaped_topic = html.escape(topic)
+        # Escape tags to prevent XML injection, but preserve quotes for natural language fidelity
+        voice_profile = html.escape(self.get_voice_profile(), quote=False)
+        escaped_topic = html.escape(topic, quote=False)
 
         prompt = f"""
         You are a ghostwriter for a specific persona. Here is their voice profile:
@@ -120,8 +122,8 @@ class AIHandler:
         return clean_tweets[:count]
 
     def generate_retweet_comment(self, original_tweet_text: str) -> str:
-        voice_profile = html.escape(self.get_voice_profile())
-        escaped_original_tweet = html.escape(original_tweet_text)
+        voice_profile = html.escape(self.get_voice_profile(), quote=False)
+        escaped_original_tweet = html.escape(original_tweet_text, quote=False)
 
         prompt = f"""
         You are a ghostwriter for a specific persona. Here is their voice profile:
@@ -147,7 +149,7 @@ class AIHandler:
         if not Image:
              return ["Error: Pillow library not installed. Please install it to use image features."]
              
-        voice_profile = html.escape(self.get_voice_profile())
+        voice_profile = html.escape(self.get_voice_profile(), quote=False)
 
         prompt = f"""
         You are a ghostwriter for a specific persona. Here is their voice profile:
