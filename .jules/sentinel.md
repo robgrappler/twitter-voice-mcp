@@ -15,3 +15,9 @@
 **Vulnerability:** User-controlled inputs (tweets, topics) were injected directly into LLM prompts, allowing malicious payloads to override system instructions.
 **Learning:** LLMs are susceptible to prompt injection if data and instructions are mixed without clear delineation. JSON serialization alone is insufficient if the model interprets the content as instructions.
 **Prevention:** Sanitize inputs using HTML escaping (`html.escape`) and wrap them in XML tags (e.g., `<tweets>...</tweets>`) to structurally separate data from instructions.
+
+## 2025-05-15 - Symlink Path Traversal
+
+**Vulnerability:** Path validation using `os.path.abspath` allowed traversal outside the safe directory via symbolic links (Time-of-Check Time-of-Use or static symlink traversal).
+**Learning:** `os.path.abspath` only resolves `.` and `..` but does not resolve symbolic links. Validating a path that contains symlinks against a safe directory check can be bypassed if the symlink points outside.
+**Prevention:** Use `os.path.realpath` to resolve the canonical path (including all symlinks) before validating it against the allowed directory. Also ensure the safe directory path itself is resolved with `realpath`.

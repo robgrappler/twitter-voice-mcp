@@ -38,6 +38,7 @@ class TestPathTraversal(unittest.TestCase):
         sys.modules["twitter_handler"] = MagicMock()
         sys.modules["data_handler"] = MagicMock()
         sys.modules["scheduler"] = MagicMock()
+        sys.modules["dotenv"] = MagicMock()
 
         # Import server after mocks are in place
         # Need to remove server from modules if it exists to force reimport
@@ -112,6 +113,57 @@ class TestPathTraversal(unittest.TestCase):
 
         self.assertTrue("Access denied" in result or "Error" in result or "Security Error" in result, f"Result should be an error, got: {result}")
         self.server.twitter.post_tweet.assert_not_called()
+
+    def test_symlink_traversal_vulnerability(self):
+        # Setup: Create symlink structure
+        safe_dir = self.server.SAFE_DIR
+        # Ensure SAFE_DIR exists
+        if not os.path.exists(safe_dir):
+            os.makedirs(safe_dir, exist_ok=True)
+            # We don't want to remove safe_dir in cleanup because other tests might rely on it
+            # (though they shouldn't rely on physical existence if mocked, but safer to leave it)
+
+        victim_dir = os.path.abspath(os.path.join(safe_dir, "..", "victim_data"))
+        os.makedirs(victim_dir, exist_ok=True)
+        # Register cleanup for victim_dir (rmdir requires empty dir, so handle file first)
+
+        secret_file = os.path.join(victim_dir, "secret.txt")
+        with open(secret_file, "w") as f:
+            f.write("secret content")
+
+        symlink_path = os.path.join(safe_dir, "symlink_to_victim")
+        if os.path.exists(symlink_path):
+            os.remove(symlink_path)
+
+        try:
+            os.symlink(victim_dir, symlink_path)
+
+            # Register cleanup
+            def cleanup():
+                if os.path.exists(symlink_path):
+                    os.remove(symlink_path)
+                if os.path.exists(secret_file):
+                    os.remove(secret_file)
+                if os.path.exists(victim_dir):
+                    os.rmdir(victim_dir)
+            self.addCleanup(cleanup)
+
+            # Test: Try access via symlink
+            path_via_symlink = os.path.join(symlink_path, "secret.txt")
+
+            # Expect ValueError (Access denied) because we fixed the vulnerability
+            with self.assertRaises(ValueError) as cm:
+                self.server.validate_path(path_via_symlink)
+
+            self.assertIn("Access denied", str(cm.exception))
+
+        except OSError:
+            print("Skipping symlink test due to OS constraints")
+            # Still cleanup if partial creation happened
+            if os.path.exists(secret_file):
+                os.remove(secret_file)
+            if os.path.exists(victim_dir):
+                os.rmdir(victim_dir)
 
 if __name__ == "__main__":
     unittest.main()
