@@ -81,5 +81,39 @@ class TestDataManager(unittest.TestCase):
         self.assertEqual(rows[0]["text"], "Test Tweet 2")
         self.assertEqual(rows[0]["media_path"], "media2.jpg")
 
+    def test_get_first_pending_draft(self):
+        # 1. Add multiple drafts (some pending, some posted)
+        id1 = self.data_manager.add_draft("Draft 1")
+        self.data_manager.mark_as_posted(id1, "tweet1")
+
+        id2 = self.data_manager.add_draft("Draft 2") # This is the first pending one
+        id3 = self.data_manager.add_draft("Draft 3") # Second pending
+
+        # 2. Get first pending
+        draft = self.data_manager.get_first_pending_draft()
+
+        # 3. Verify it is Draft 2
+        self.assertIsNotNone(draft)
+        self.assertEqual(draft["id"], id2)
+        self.assertEqual(draft["text"], "Draft 2")
+
+        # 4. Mark Draft 2 as posted
+        self.data_manager.mark_as_posted(id2, "tweet2")
+
+        # 5. Get first pending again
+        draft = self.data_manager.get_first_pending_draft()
+
+        # 6. Verify it is Draft 3
+        self.assertIsNotNone(draft)
+        self.assertEqual(draft["id"], id3)
+        self.assertEqual(draft["text"], "Draft 3")
+
+        # 7. Mark Draft 3 as posted
+        self.data_manager.mark_as_posted(id3, "tweet3")
+
+        # 8. Get first pending (none left)
+        draft = self.data_manager.get_first_pending_draft()
+        self.assertIsNone(draft)
+
 if __name__ == "__main__":
     unittest.main()
