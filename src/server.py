@@ -22,14 +22,15 @@ data_manager = DataManager()
 scheduler = TweetScheduler()
 
 # Define safe directory for file operations
-SAFE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data"))
+SAFE_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "data"))
 
 def validate_path(path: str) -> str:
     """
     Validates that the path is within the SAFE_DIR.
     Returns the absolute path if valid, raises ValueError otherwise.
     """
-    abs_path = os.path.abspath(path)
+    # Use realpath to resolve symlinks and prevent traversal
+    abs_path = os.path.realpath(path)
 
     try:
         # Check if abs_path is inside SAFE_DIR using commonpath (handles component boundaries)
