@@ -13,3 +13,7 @@
 ## 2025-01-27 - [Voice Profile Caching]
 **Learning:** The voice profile file (`voice_profile.txt`) was being read from disk on every tweet generation request, adding unnecessary I/O overhead.
 **Action:** Implemented an in-memory cache in `AIHandler` that stores the profile after the first read or analysis, and updates it on save, reducing file reads to once per session (or update).
+
+## 2025-01-27 - [CSV Stream Processing]
+**Learning:** Reading the entire `drafts.csv` file into memory (O(N)) to find the first pending draft is inefficient for large files.
+**Action:** Implemented `get_first_pending_draft` in `DataManager` to stream the file and return immediately upon finding the first match (O(k) where k is the index), reducing memory usage and potential I/O time.

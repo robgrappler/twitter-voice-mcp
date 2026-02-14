@@ -89,12 +89,7 @@ class TweetScheduler:
     
     def get_next_pending_draft(self) -> Optional[Dict]:
         """Fetch the oldest pending draft."""
-        drafts = self.data_manager.list_pending_drafts()
-        if not drafts:
-            return None
-        # drafts are returned as list of dicts, created_at is ISO string
-        # They should be sorted by created_at naturally if appended to CSV
-        return drafts[0]
+        return self.data_manager.get_first_pending_draft()
 
     def is_strategy_slot(self, dt_utc: datetime) -> bool:
         """

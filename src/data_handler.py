@@ -75,6 +75,22 @@ class DataManager:
                     pending.append(row)
         return pending
 
+    def get_first_pending_draft(self) -> Optional[Dict]:
+        """
+        Stream the CSV file and return the first pending draft found.
+        This is O(k) memory and speed, where k is the index of the first pending draft.
+        Avoids reading the entire file into memory (O(N)) when only one is needed.
+        """
+        if not os.path.exists(DRAFTS_FILE):
+            return None
+
+        with open(DRAFTS_FILE, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if row.get("status") == "pending":
+                    return row
+        return None
+
     def get_draft(self, draft_id: str) -> Optional[Dict]:
         if not os.path.exists(DRAFTS_FILE):
             return None
